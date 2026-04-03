@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NPS Information Assistant</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ── Header ─────────────────────────────────────────────────── -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <span class="header-logo" aria-hidden="true">🏛️</span>
+        <div>
+          <h1 class="header-title">NPS Information Assistant</h1>
+          <p class="header-sub">National Pension System · Powered by PFRDA official documents</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── PII Disclaimer ─────────────────────────────────────────── -->
+  <div class="disclaimer" role="alert">
+    <span class="disclaimer-icon" aria-hidden="true">⚠️</span>
+    <strong>Privacy notice:</strong> Do <em>not</em> enter your PRAN number, Aadhaar number,
+    bank account details, or any other personal identifiers in this chat.
+    <button class="disclaimer-close" aria-label="Dismiss notice" onclick="this.closest('.disclaimer').remove()">✕</button>
+  </div>
+
+  <!-- ── Main layout ────────────────────────────────────────────── -->
+  <main class="chat-layout">
+
+    <!-- Chat window -->
+    <section class="chat-window" id="chatWindow" aria-live="polite" aria-label="Conversation">
+
+      <!-- Welcome message -->
+      <div class="message bot" id="welcomeMsg">
+        <div class="message-avatar" aria-hidden="true">🤖</div>
+        <div class="message-body">
+          <div class="message-text">
+            <p>Hello! I can answer questions about India's <strong>National Pension System (NPS)</strong>
+            based on official PFRDA and NPS Trust documents.</p>
+            <p>Try asking:</p>
+            <ul class="suggestion-list">
+              <li><button class="suggestion" onclick="fillSuggestion(this)">Can I withdraw NPS corpus before retirement at 60?</button></li>
+              <li><button class="suggestion" onclick="fillSuggestion(this)">What is the minimum annuity purchase requirement on NPS exit?</button></li>
+              <li><button class="suggestion" onclick="fillSuggestion(this)">How is NPS taxed under Section 80CCD?</button></li>
+              <li><button class="suggestion" onclick="fillSuggestion(this)">What is the difference between NPS Tier I and Tier II?</button></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Input bar -->
+    <div class="input-bar">
+      <label for="queryInput" class="sr-only">Ask an NPS question</label>
+      <textarea
+        id="queryInput"
+        class="query-input"
+        placeholder="Ask an NPS question…"
+        rows="1"
+        maxlength="500"
+        autocomplete="off"
+        spellcheck="true"
+      ></textarea>
+      <button id="sendBtn" class="send-btn" aria-label="Send question">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+          <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z"/>
+        </svg>
+      </button>
+    </div>
+
+    <p class="input-hint">
+      This assistant provides general NPS information only — not personalised financial advice.
+      Always verify with <a href="https://www.npstrust.org.in" target="_blank" rel="noopener">NPS Trust</a>
+      or <a href="https://www.pfrda.org.in" target="_blank" rel="noopener">PFRDA</a>.
+    </p>
+
+  </main>
+
+  <!--
+    Set window.BACKEND_URL to your Render backend URL before deploying.
+    e.g. <script>window.BACKEND_URL = "https://nps-chatbot-api.onrender.com";</script>
+    Leave it out during local development — app.js defaults to localhost:8000.
+  -->
+  <script src="app.js"></script>
+</body>
+</html>

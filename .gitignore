@@ -1,0 +1,33 @@
+# Secrets — never commit
+.env
+
+# Generated data (large files, rebuilt by run_ingestion.py)
+data/raw/
+data/processed/embedded_chunks.json
+data/processed/all_chunks.json
+data/processed/leaf_chunks.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+venv/
+env/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Evaluation results
+evaluate/results/
+
+# Misc
+.Rhistory
+backend.log
+.claude/

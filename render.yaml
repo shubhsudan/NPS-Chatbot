@@ -1,0 +1,28 @@
+# render.yaml — Render deployment config
+# Single service — FastAPI serves both the API and the frontend.
+
+services:
+  - type: web
+    name: nps-chatbot
+    runtime: python
+    region: oregon
+    plan: free
+
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+
+    healthCheckPath: /health
+
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: QDRANT_COLLECTION
+        value: nps_docs_small        # separate collection for bge-small vectors
+      - key: EMBED_MODEL
+        value: BAAI/bge-small-en-v1.5
+      - key: GROQ_MODEL
+        value: llama-3.1-8b-instant

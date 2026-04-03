@@ -1,0 +1,20 @@
+# Backend dependencies (Phases 2–4)
+
+# Retrieval
+qdrant-client==1.12.1
+sentence-transformers==3.3.1
+rank-bm25==0.2.2
+torch>=2.1.0
+
+# Re-ranking (Phase 3)
+# Uses the same sentence-transformers package with a cross-encoder model
+
+# LLM (Phase 3)
+groq==0.12.0
+
+# API (Phase 4)
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+
+# Utilities
+python-dotenv==1.0.1

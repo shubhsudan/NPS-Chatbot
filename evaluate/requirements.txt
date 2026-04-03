@@ -1,0 +1,10 @@
+# Phase 6 — Evaluation dependencies
+# Install on top of backend/requirements.txt
+
+ragas==0.1.21
+datasets==2.21.0
+
+# LangChain wrappers — versions constrained by ragas 0.1.21 (needs langchain-core<0.3)
+langchain-groq==0.1.9
+langchain-huggingface==0.0.3
+langchain-core==0.2.43

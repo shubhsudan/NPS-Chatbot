@@ -8,8 +8,23 @@ Steps:
   4. upload      — push to Qdrant + build BM25 index
 
 Run from the project root:
-  python ingestion/run_ingestion.py
+  python ingestion/run_ingestion.py                    # uses .env (bge-large, nps_docs)
+  python ingestion/run_ingestion.py --env .env.small   # uses .env.small (bge-small, nps_docs_small)
 """
+
+import sys
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Parse optional --env flag before importing modules that read env vars
+_env_file = ".env"
+if "--env" in sys.argv:
+    idx = sys.argv.index("--env")
+    if idx + 1 < len(sys.argv):
+        _env_file = sys.argv[idx + 1]
+
+load_dotenv(Path(__file__).parent.parent / _env_file, override=True)
+print(f"Loaded env from: {_env_file}")
 
 from dataclasses import asdict
 from scraper import run_scraper

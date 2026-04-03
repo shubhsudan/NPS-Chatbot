@@ -36,7 +36,8 @@ QDRANT_URL = os.environ["QDRANT_URL"]
 QDRANT_API_KEY = os.environ["QDRANT_API_KEY"]
 COLLECTION_NAME = os.environ.get("QDRANT_COLLECTION", "nps_docs")
 
-VECTOR_DIM = 1024       # bge-large-en-v1.5 output dimension
+_EMBED_MODEL = os.environ.get("EMBED_MODEL", "BAAI/bge-large-en-v1.5")
+VECTOR_DIM = 384 if "small" in _EMBED_MODEL else 1024  # small=384, large=1024
 BATCH_SIZE = 100        # upsert batch size — Qdrant Cloud free tier is fine with this
 
 DISTANCE_METRIC = qdrant_models.Distance.COSINE

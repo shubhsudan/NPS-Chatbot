@@ -31,3 +31,4 @@ evaluate/results/
 .Rhistory
 backend.log
 .claude/
+.env.small

@@ -12,18 +12,22 @@ bge-large-en-v1.5 notes:
 """
 
 import json
+import os
 from pathlib import Path
 
 import torch
+from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
+
+load_dotenv()
 
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 
 PROCESSED_DATA_DIR = Path(__file__).parent.parent / "data" / "processed"
-EMBED_MODEL_NAME = "BAAI/bge-large-en-v1.5"
+EMBED_MODEL_NAME = os.environ.get("EMBED_MODEL", "BAAI/bge-large-en-v1.5")
 BATCH_SIZE = 32  # adjust down if you hit OOM on CPU
 
 

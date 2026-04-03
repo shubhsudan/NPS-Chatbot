@@ -39,7 +39,8 @@ print('Models pre-downloaded OK') \
 # ---------------------------------------------------------------------------
 COPY backend/  ./backend/
 COPY frontend/ ./frontend/
-COPY data/     ./data/
+# data/local_docs PDFs were used for ingestion only — data now lives in Qdrant Cloud.
+# BM25 index is not included; retriever falls back to dense-only search gracefully.
 
 # Fix ownership for non-root user
 RUN chown -R appuser:appuser /app

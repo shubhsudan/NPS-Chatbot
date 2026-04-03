@@ -30,15 +30,27 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 
 _pipeline: NPSPipeline | None = None
+_pipeline_loading = False
+
+
+def _get_pipeline() -> NPSPipeline:
+    """Lazy-load the pipeline on first request (avoids slow startup on Render free tier)."""
+    global _pipeline, _pipeline_loading
+    if _pipeline is None:
+        _pipeline_loading = True
+        print("[pipeline] Loading NPS pipeline (first request)...")
+        _pipeline = NPSPipeline()
+        _pipeline_loading = False
+        print("[pipeline] Pipeline ready.")
+    return _pipeline
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _pipeline
-    print("[startup] Loading NPS pipeline...")
-    _pipeline = NPSPipeline()
-    print("[startup] Pipeline ready.")
+    # No heavy loading at startup — bind port immediately, load on first request
+    print("[startup] NPS Chatbot ready (pipeline loads on first request).")
     yield
+    global _pipeline
     _pipeline = None
 
 
@@ -110,8 +122,7 @@ def health() -> dict:
     Ping this endpoint every 5 minutes from an external cron to prevent
     Render free-tier cold starts.
     """
-    ready = _pipeline is not None
-    return {"status": "ok" if ready else "warming_up", "pipeline_loaded": ready}
+    return {"status": "ok", "pipeline_loaded": _pipeline is not None}
 
 
 @app.post("/chat", response_model=ChatResponse, tags=["chat"])
@@ -122,14 +133,13 @@ def chat(request: ChatRequest) -> ChatResponse:
     The query is sanitized for PII before any processing. The response includes
     source citations so the user can verify the information.
     """
-    if _pipeline is None:
-        raise HTTPException(status_code=503, detail="Pipeline is still loading. Try again shortly.")
-
     if not request.query.strip():
         raise HTTPException(status_code=400, detail="Query must not be empty.")
 
+    pipeline = _get_pipeline()  # lazy-loads on first call
+
     try:
-        result: PipelineResult = _pipeline.query(request.query)
+        result: PipelineResult = pipeline.query(request.query)
     except GroqRateLimitError:
         raise HTTPException(
             status_code=429,

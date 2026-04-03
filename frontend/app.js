@@ -239,9 +239,13 @@ async function handleSend() {
       const detail = Array.isArray(err.detail)
         ? err.detail.map(e => e.msg).join(", ")
         : (err.detail || `Server error ${resp.status}`);
-      throw new Error(resp.status === 429
-        ? "⏳ The AI service is rate-limited right now. Please wait a minute and try again."
-        : detail);
+      throw new Error(
+        resp.status === 429
+          ? "⏳ The AI service is rate-limited right now. Please wait a minute and try again."
+          : resp.status === 503
+          ? "⏳ The assistant is still warming up. Please wait about 60 seconds and try again."
+          : detail
+      );
     }
 
     const data = await resp.json();

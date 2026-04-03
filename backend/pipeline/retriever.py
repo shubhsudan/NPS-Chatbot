@@ -91,8 +91,11 @@ class HybridRetriever:
         print(f"[Retriever] Connecting to Qdrant at {QDRANT_URL}...")
         return QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY, timeout=30)
 
-    def _load_bm25(self) -> dict:
-        """Load the pickled BM25 index + chunk list from disk."""
+    def _load_bm25(self) -> dict | None:
+        """Load the pickled BM25 index + chunk list from disk. Returns None if not found."""
+        if not BM25_INDEX_PATH.exists():
+            print(f"[Retriever] WARNING: BM25 index not found at {BM25_INDEX_PATH} — sparse retrieval disabled")
+            return None
         print(f"[Retriever] Loading BM25 index from {BM25_INDEX_PATH}...")
         with open(BM25_INDEX_PATH, "rb") as f:
             return pickle.load(f)
@@ -243,7 +246,7 @@ class HybridRetriever:
         dense_results = self._dense_search(
             query, top_k=DENSE_FETCH, precomputed_embedding=hyde_embedding
         )
-        sparse_results = self._sparse_search(query, top_k=SPARSE_FETCH)
+        sparse_results = self._sparse_search(query, top_k=SPARSE_FETCH) if self._bm25_data else []
 
         merged = self._rrf_merge(dense_results, sparse_results, top_k=top_k)
         return merged

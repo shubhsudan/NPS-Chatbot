@@ -10,6 +10,7 @@ Run locally:
 """
 
 import os
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -26,29 +27,29 @@ from pipeline.pipeline import NPSPipeline, PipelineResult
 load_dotenv()
 
 # ---------------------------------------------------------------------------
-# Lifespan — load heavy models once at startup
+# Pipeline — loaded in a background thread so port binds immediately
 # ---------------------------------------------------------------------------
 
 _pipeline: NPSPipeline | None = None
-_pipeline_loading = False
+_pipeline_error: str | None = None
 
 
-def _get_pipeline() -> NPSPipeline:
-    """Lazy-load the pipeline on first request (avoids slow startup on Render free tier)."""
-    global _pipeline, _pipeline_loading
-    if _pipeline is None:
-        _pipeline_loading = True
-        print("[pipeline] Loading NPS pipeline (first request)...")
+def _load_pipeline_background() -> None:
+    global _pipeline, _pipeline_error
+    print("[startup] Loading NPS pipeline in background thread...")
+    try:
         _pipeline = NPSPipeline()
-        _pipeline_loading = False
-        print("[pipeline] Pipeline ready.")
-    return _pipeline
+        print("[startup] Pipeline ready.")
+    except Exception as e:
+        _pipeline_error = str(e)
+        print(f"[startup] Pipeline load FAILED: {e}")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # No heavy loading at startup — bind port immediately, load on first request
-    print("[startup] NPS Chatbot ready (pipeline loads on first request).")
+    # Start model loading in background — port binds immediately
+    t = threading.Thread(target=_load_pipeline_background, daemon=True)
+    t.start()
     yield
     global _pipeline
     _pipeline = None
@@ -136,10 +137,16 @@ def chat(request: ChatRequest) -> ChatResponse:
     if not request.query.strip():
         raise HTTPException(status_code=400, detail="Query must not be empty.")
 
-    pipeline = _get_pipeline()  # lazy-loads on first call
+    if _pipeline is None:
+        if _pipeline_error:
+            raise HTTPException(status_code=500, detail=f"Pipeline failed to load: {_pipeline_error}")
+        raise HTTPException(
+            status_code=503,
+            detail="The service is warming up (loading AI models). Please wait 60 seconds and try again."
+        )
 
     try:
-        result: PipelineResult = pipeline.query(request.query)
+        result: PipelineResult = _pipeline.query(request.query)
     except GroqRateLimitError:
         raise HTTPException(
             status_code=429,

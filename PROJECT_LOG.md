@@ -136,7 +136,7 @@ python run_ingestion.py --env .env.small
 ### Files
 - `backend/pipeline/sanitizer.py` — regex strips PRAN (12-digit), Aadhaar, bank accounts, UPI, IFSC
 - `backend/pipeline/topic_guard.py` — Groq LLM classifier; generous scope (NPS/pension/retirement/tax); fails open (YES when in doubt)
-- `backend/pipeline/hyde.py` — Groq generates hypothetical answer → bge embeds it → returns vector
+- `backend/pipeline/hyde.py` — Groq generates hypothetical answer text; embedding handled by retriever (no local model loaded here)
 - `backend/pipeline/reranker.py` — CrossEncoder ms-marco-MiniLM-L-6-v2 reranks top 10 → top 4
 - `backend/pipeline/generator.py` — locked NPS-only system prompt, Groq API call, citation deduplication
 - `backend/pipeline/pipeline.py` — orchestrates all steps; returns PipelineResult with answer + citations
@@ -153,10 +153,11 @@ python run_ingestion.py --env .env.small
 - `GET /health` — returns `{"status": "ok"}` immediately (no model dependency)
 
 ### Key design decisions
-- **Lazy loading** — pipeline loads on first `/chat` request, not at startup; lets Render bind port immediately
+- **Background thread loading** — `NPSPipeline()` loads in a `daemon=True` thread at lifespan startup; port binds immediately (no Render timeout); `/chat` returns HTTP 503 "warming up" while models load
 - **StaticFiles** — frontend served from FastAPI on same port; no CORS needed
 - **Rate limit handling** — `GroqRateLimitError` caught → HTTP 429 with friendly message
 - **PII** — sanitized before any LLM call; UI shows notice if query was modified
+- **Shared embed model** — `hyde.py` only calls Groq (no local SentenceTransformer); the retriever's already-loaded model is used via `retriever.embed()` to embed the HyDE text — saves ~90MB RAM
 
 ---
 
@@ -219,9 +220,11 @@ python evaluate.py
 | CORS / Load failed | Frontend on port 5500, backend on 8000 | Serve frontend from FastAPI StaticFiles on single port |
 | Server error 500 | Groq daily 100k token limit | Added GroqRateLimitError → HTTP 429; switched to llama-3.1-8b-instant (500k TPD) |
 | Render: `requirements.txt` not found | Build command ran from root, file is at `backend/requirements.txt` | Fixed build command path |
-| Render: `No open ports detected` | Models loading at startup → uvicorn never bound port | Lazy-load pipeline on first `/chat` request |
+| Render: `No open ports detected` | Models loading at startup → uvicorn never bound port | Background thread loading: port binds immediately, pipeline loads in daemon thread |
 | Render: `KeyError: QDRANT_API_KEY` | Env vars not saved on Render | Added all 6 env vars via Render dashboard |
 | 404 on circular PDFs | NPS Trust circulars require JS session | Removed from DIRECT_PDF_SOURCES; page text still scraped |
+| Render: 502 Bad Gateway | Lazy loading caused first `/chat` to take 60s+ → nginx proxy timeout | Switched to background thread; `/chat` returns 503 while warming up instead of timing out |
+| Render: OOM crash (512 MB exceeded) | `hyde.py` and `retriever.py` each loaded separate SentenceTransformer instances (~90MB each) | Removed SentenceTransformer from `hyde.py`; added `retriever.embed()` method; HyDE text now embedded by the retriever's shared model — saves ~90MB |
 
 ---
 
@@ -301,6 +304,46 @@ nps-chatbot/
 ├── start.sh                    # One-command local startup
 └── CLAUDE.md                   # Project context for Claude Code
 ```
+
+---
+
+## Groq API Usage — Per Query Breakdown
+
+Every `/chat` request makes **3 Groq API calls**:
+
+| Step | File | Tokens In | Tokens Out | Purpose |
+|------|------|-----------|------------|---------|
+| Topic Guard | `topic_guard.py` | ~150 | 5 | YES/NO classifier — NPS scope check |
+| HyDE | `hyde.py` | ~200 | ~200 | Generate hypothetical NPS answer for retrieval |
+| Generator | `generator.py` | ~1,500 | ~600 | Final grounded answer with citations |
+| **Total** | | **~1,850** | **~805** | **~2,655 tokens/query** |
+
+**Free tier limit:** `llama-3.1-8b-instant` = 500,000 tokens/day → ~**188 queries/day**
+
+- Topic guard skipping (out-of-scope query) saves ~2,500 tokens
+- HyDE falls back to raw query embedding if Groq call fails (no query blocked)
+- All 3 calls use the model set by `GROQ_MODEL` env var
+
+---
+
+## Render Deployment Journey
+
+| Attempt | Error | Root Cause | Fix |
+|---------|-------|-----------|-----|
+| 1 | `requirements.txt not found` | Build command path wrong | `pip install -r backend/requirements.txt` |
+| 2 | `No open ports detected` | Models loaded at startup — uvicorn took 60s+ to start | Lazy-load on first request |
+| 3 | `KeyError: QDRANT_API_KEY` | Env vars not set on Render dashboard | Added all 6 vars manually |
+| 4 | `502 Bad Gateway` | Lazy-load caused first `/chat` to hit Render's 30s nginx timeout | Background thread loading — port binds immediately |
+| 5 | OOM crash (512MB exceeded) | Two SentenceTransformer instances (hyde.py + retriever.py) | Shared single model via `retriever.embed()` |
+
+**Memory budget (Render free tier: 512MB):**
+
+| Component | RAM |
+|-----------|-----|
+| PyTorch + Python + FastAPI | ~300MB |
+| bge-small-en-v1.5 (shared, one copy) | ~90MB |
+| CrossEncoder ms-marco-MiniLM-L-6-v2 | ~90MB |
+| **Total** | **~480MB** ✓ |
 
 ---
 

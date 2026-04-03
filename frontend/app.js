@@ -3,7 +3,8 @@
 // ---------------------------------------------------------------------------
 // Config — update BACKEND_URL after deploying to Render
 // ---------------------------------------------------------------------------
-const BACKEND_URL = window.BACKEND_URL || "http://localhost:8000";
+// Empty string = same-origin (works on Render). Override window.BACKEND_URL for cross-origin dev.
+const BACKEND_URL = window.BACKEND_URL || "";
 
 // ---------------------------------------------------------------------------
 // DOM refs

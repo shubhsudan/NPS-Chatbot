@@ -16,19 +16,14 @@ the dense leg.
 
 import os
 
-import torch
 from dotenv import load_dotenv
 from groq import Groq
-from sentence_transformers import SentenceTransformer
 
 load_dotenv()
 
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.1-70b-versatile")
-EMBED_MODEL_NAME = os.environ.get("EMBED_MODEL", "BAAI/bge-large-en-v1.5")
-BGE_QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
 
 _groq_client: Groq | None = None
-_embed_model: SentenceTransformer | None = None
 
 
 def _get_groq() -> Groq:
@@ -36,14 +31,6 @@ def _get_groq() -> Groq:
     if _groq_client is None:
         _groq_client = Groq(api_key=os.environ["GROQ_API_KEY"])
     return _groq_client
-
-
-def _get_embed_model() -> SentenceTransformer:
-    global _embed_model
-    if _embed_model is None:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        _embed_model = SentenceTransformer(EMBED_MODEL_NAME, device=device)
-    return _embed_model
 
 
 # ---------------------------------------------------------------------------
@@ -57,12 +44,11 @@ _HYDE_SYSTEM = (
 )
 
 
-def generate_hyde_embedding(query: str) -> list[float]:
+def generate_hyde_text(query: str) -> str:
     """
-    Generate a HyDE embedding for the given query.
-
-    Returns a normalised 1024-dim vector (list[float]) ready for Qdrant search.
-    Falls back to embedding the original query if the Groq call fails.
+    Ask Groq to write a short hypothetical NPS answer to the query.
+    Returns the hypothetical text (or the original query on failure).
+    The caller is responsible for embedding it — no SentenceTransformer loaded here.
     """
     try:
         response = _get_groq().chat.completions.create(
@@ -74,15 +60,7 @@ def generate_hyde_embedding(query: str) -> list[float]:
             temperature=0.3,
             max_tokens=200,
         )
-        hypothetical_text = response.choices[0].message.content.strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"[HyDE] Groq call failed ({e}), falling back to raw query embedding.")
-        hypothetical_text = query
-
-    model = _get_embed_model()
-    vec = model.encode(
-        BGE_QUERY_PREFIX + hypothetical_text,
-        normalize_embeddings=True,
-        convert_to_numpy=True,
-    )
-    return vec.tolist()
+        print(f"[HyDE] Groq call failed ({e}), falling back to raw query.")
+        return query

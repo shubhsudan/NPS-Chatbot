@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 
 from pipeline.sanitizer import sanitize
 from pipeline.topic_guard import is_in_scope
-from pipeline.hyde import generate_hyde_embedding
+from pipeline.hyde import generate_hyde_text
 from pipeline.retriever import HybridRetriever, RetrievedChunk
 from pipeline.reranker import rerank, RankedChunk
 from pipeline.generator import generate, Citation
@@ -80,20 +80,23 @@ class NPSPipeline:
                 sanitized_query=clean_query,
             )
 
-        # 3. HyDE — generate hypothetical answer, embed for better dense retrieval
-        hyde_vec = generate_hyde_embedding(clean_query)
+        # 3. HyDE — generate hypothetical answer text (Groq only, no local embedding)
+        hyde_text = generate_hyde_text(clean_query)
 
-        # 4. Hybrid retrieval using HyDE embedding for dense leg
+        # 4. Embed HyDE text with the retriever's already-loaded model (no duplicate model)
+        hyde_vec = self._retriever.embed(hyde_text)
+
+        # 5. Hybrid retrieval using HyDE embedding for dense leg
         retrieved = self._retriever.retrieve(
             clean_query,
             top_k=RETRIEVAL_TOP_K,
             hyde_embedding=hyde_vec,
         )
 
-        # 5. Cross-encoder re-ranking
+        # 6. Cross-encoder re-ranking
         reranked = rerank(clean_query, retrieved, top_k=RERANK_TOP_K)
 
-        # 6. Generate grounded answer with NPS context
+        # 7. Generate grounded answer with NPS context
         answer, citations = generate(clean_query, reranked)
 
         return PipelineResult(

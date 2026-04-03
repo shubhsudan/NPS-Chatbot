@@ -223,6 +223,14 @@ class HybridRetriever:
     # Public API
     # ------------------------------------------------------------------
 
+    def embed(self, text: str) -> list[float]:
+        """Embed text using the retriever's already-loaded model."""
+        return self._embed_model.encode(
+            BGE_QUERY_PREFIX + text,
+            normalize_embeddings=True,
+            convert_to_numpy=True,
+        ).tolist()
+
     def retrieve(
         self,
         query: str,

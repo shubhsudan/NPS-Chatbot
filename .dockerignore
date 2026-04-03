@@ -1,0 +1,10 @@
+.env
+.env.small
+__pycache__
+*.pyc
+.git
+data/raw/
+data/processed/
+ingestion/
+evaluate/
+*.egg-info

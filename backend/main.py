@@ -179,4 +179,4 @@ _FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 def root():
     return FileResponse(_FRONTEND_DIR / "index.html")
 
-app.mount("/", StaticFiles(directory=_FRONTEND_DIR), name="frontend")
+app.mount("/", StaticFiles(directory=_FRONTEND_DIR, html=True), name="frontend")
